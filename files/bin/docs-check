@@ -1,0 +1,81 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Checks the documentation set: local Markdown links resolve, the entry points
+# link to each other, every page under docs/ is reachable from docs/README.md,
+# and ADR numbers run without gaps.
+
+ROOT = Dir.pwd
+ENTRY_FILES = %w[AGENTS.md ARCHITECTURE.md README.md].freeze
+LINK = /(?<!!)\[[^\]]*\]\(([^)\s]+)[^)]*\)/
+FENCE = /^```.*?^```/m
+ADR = %r{\Adocs/adr/(\d{4})-[a-z0-9-]+\.md\z}
+
+def relative(path) = path.delete_prefix("#{ROOT}/")
+
+def markdown_files
+  (ENTRY_FILES.map { |file| File.join(ROOT, file) } + Dir.glob(File.join(ROOT, "docs/**/*.md")))
+    .select { |path| File.file?(path) }
+    .sort
+end
+
+def local_links(path)
+  File.read(path).gsub(FENCE, "").scan(LINK).flatten.filter_map do |target|
+    local = target.split("#", 2).first
+    local unless local.empty? || local.match?(%r{\A(?:[a-z][a-z0-9+.-]*:|//)}i)
+  end
+end
+
+def resolved_links(path)
+  local_links(path).map { |target| [target, File.expand_path(target, File.dirname(path))] }
+end
+
+def broken_links(files)
+  files.flat_map do |path|
+    resolved_links(path).reject { |_target, resolved| File.exist?(resolved) }
+      .map { |target, _resolved| "#{relative(path)}: broken link `#{target}`" }
+  end
+end
+
+def missing_entry_links
+  checks = {
+    "AGENTS.md" => %w[ARCHITECTURE.md docs/README.md],
+    "docs/README.md" => %w[ARCHITECTURE.md docs/DOMAIN.md docs/adr/README.md]
+  }
+  checks.flat_map do |file, targets|
+    path = File.join(ROOT, file)
+    next ["#{file}: missing"] unless File.file?(path)
+
+    linked = resolved_links(path).map(&:last)
+    targets.reject { |target| linked.include?(File.join(ROOT, target)) }
+      .map { |target| "#{file}: must link to #{target}" }
+  end
+end
+
+def unindexed_pages(files)
+  index = File.join(ROOT, "docs/README.md")
+  return [] unless File.file?(index)
+
+  indexed = resolved_links(index).map(&:last)
+  files.map { |path| [path, relative(path)] }
+    .select { |path, name| name.start_with?("docs/") && path != index && !indexed.include?(path) }
+    .map { |_path, name| "#{name}: not linked from docs/README.md" }
+end
+
+def adr_numbering
+  numbers = markdown_files.filter_map { |path| relative(path)[ADR, 1]&.to_i }.sort
+  return [] if numbers == (1..numbers.size).to_a
+
+  ["docs/adr: ADR numbers must run 0001, 0002, ... without gaps or duplicates"]
+end
+
+files = markdown_files
+errors = broken_links(files) + missing_entry_links + unindexed_pages(files) + adr_numbering
+
+if errors.empty?
+  puts "Documentation check passed."
+else
+  warn "Documentation check failed:"
+  errors.each { |error| warn "- #{error}" }
+  exit 1
+end

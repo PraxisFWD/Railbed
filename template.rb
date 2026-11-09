@@ -93,13 +93,20 @@ copy_template_file ".agents/skills/tdd-workflow/SKILL.md"
 copy_template_file ".agents/skills/team-code-review/SKILL.md"
 copy_template_file ".github/workflows/ci.yml"
 copy_template_file "AGENTS.md"
+copy_template_file "ARCHITECTURE.md"
 copy_template_file "bin/dependency-policy"
+copy_template_file "bin/docs-check"
 copy_template_file "bin/rubycritic"
 copy_template_file "bin/rubycritic-changed"
 copy_template_file "bin/tapioca"
 copy_template_file "config/bundler-audit.yml"
 copy_template_file "config/ci.rb"
 copy_template_file "config/initializers/strong_migrations.rb"
+copy_template_file "docs/README.md"
+copy_template_file "docs/DOMAIN.md"
+copy_template_file "docs/adr/README.md"
+copy_template_file "docs/adr/0001-one-postgres-database-for-solid-tables.md"
+copy_template_file "docs/adr/0002-credentials-dig-over-env.md"
 copy_template_file "docs/guides/configuration.md"
 copy_template_file "docs/guides/testing.md"
 copy_template_file "lib/credentials.rb"
@@ -116,6 +123,7 @@ copy_template_file "sorbet/rbi/shims/bundler_connection_pool.rbi"
 copy_template_file "spec/config/sorbet_strictness_spec.rb"
 copy_template_file "spec/config/testing_stack_spec.rb"
 copy_template_file "spec/config/rubocop_scope_spec.rb"
+copy_template_file "spec/bin/docs_check_spec.rb"
 copy_template_file "spec/bin/rubycritic_changed_spec.rb"
 copy_template_file "spec/lib/credentials_spec.rb"
 copy_template_file "spec/rubocop/cop/quality/no_direct_env_spec.rb"
@@ -207,6 +215,7 @@ after_bundle do
   run "bundle exec rubocop -A Gemfile db/migrate"
 
   chmod "bin/dependency-policy", 0o755
+  chmod "bin/docs-check", 0o755
   chmod "bin/rubycritic", 0o755
   chmod "bin/rubycritic-changed", 0o755
   chmod "bin/tapioca", 0o755
