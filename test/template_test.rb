@@ -393,7 +393,7 @@ class TemplateTest < Minitest::Test
   def test_generated_ci_uses_current_github_actions
     workflow = ROOT.join("files/.github/workflows/ci.yml").read
 
-    assert_equal 3, workflow.scan("uses: actions/checkout@v7").size
+    assert_equal 4, workflow.scan("uses: actions/checkout@v7").size
     assert_includes workflow, "uses: actions/upload-artifact@v7"
   end
 
@@ -410,7 +410,7 @@ class TemplateTest < Minitest::Test
   def test_integration_lane_runs_generated_quality_and_security_checks
     test_runner = ROOT.join("bin/test").read
 
-    %w[bin/rubycritic bin/rubycritic-changed bin/brakeman bin/bundler-audit].each do |command|
+    %w[bin/docs-check bin/rubycritic bin/rubycritic-changed bin/brakeman bin/bundler-audit].each do |command|
       assert_includes test_runner, command
     end
     assert_includes test_runner, "bin/importmap audit"
@@ -443,7 +443,88 @@ class TemplateTest < Minitest::Test
     assert_equal %w[db/migrate/*_create_solid_queue_tables.rb], config.fetch("Quality/TimeForABoolean").fetch("Exclude")
   end
 
+  def test_template_delivers_the_agent_ready_docs_structure
+    template = ROOT.join("template.rb").read
+
+    %w[
+      ARCHITECTURE.md
+      bin/docs-check
+      docs/README.md
+      docs/DOMAIN.md
+      docs/adr/README.md
+      docs/adr/0001-one-postgres-database-for-solid-tables.md
+      docs/adr/0002-credentials-dig-over-env.md
+      spec/bin/docs_check_spec.rb
+    ].each do |path|
+      assert_includes template, %(copy_template_file "#{path}")
+      assert ROOT.join("files", path).file?, "Missing template asset: #{path}"
+    end
+    assert_includes template, 'chmod "bin/docs-check", 0o755'
+  end
+
+  def test_generated_agents_md_is_an_index_that_keeps_every_rule
+    agents = ROOT.join("files/AGENTS.md").read
+
+    ["ARCHITECTURE.md", "docs/README.md", "docs/DOMAIN.md", "docs/adr/README.md", "bin/docs-check"].each do |target|
+      assert_includes agents, target
+    end
+    ["## Configuration", "## Quality Commands", "## Definition of Done", "## Database"].each do |heading|
+      assert_includes agents, heading
+    end
+    assert_includes agents, "updates the documentation"
+    assert_includes agents, "ADR"
+    assert_operator agents.lines.size, :<=, 80
+  end
+
+  def test_generated_docs_check_runs_in_ci_workflow_and_bin_ci
+    workflow = YAML.safe_load_file(ROOT.join("files/.github/workflows/ci.yml"))
+    steps = workflow.fetch("jobs").fetch("docs").fetch("steps").filter_map { |step| step["run"] }
+
+    assert_includes steps, "bin/docs-check"
+    assert_includes ROOT.join("files/config/ci.rb").read, 'step "Docs: Links and topology", "bin/docs-check"'
+  end
+
+  def test_generated_docs_check_passes_on_the_shipped_docs_and_catches_drift
+    Dir.mktmpdir("docs-check") do |app|
+      shipped = %w[AGENTS.md ARCHITECTURE.md docs]
+      shipped.each { |path| FileUtils.cp_r(ROOT.join("files", path), app) }
+
+      stdout, stderr, status = docs_check(app)
+      assert status.success?, stderr
+      assert_includes stdout, "Documentation check passed."
+
+      File.write(File.join(app, "docs/orphan.md"), "# Orphan\n\n[gone](./missing.md)\n")
+      _stdout, stderr, status = docs_check(app)
+      refute status.success?
+      assert_includes stderr, "docs/orphan.md: broken link `./missing.md`"
+      assert_includes stderr, "docs/orphan.md: not linked from docs/README.md"
+    end
+  end
+
+  def test_adr_numbering_must_be_sequential
+    Dir.mktmpdir("docs-check") do |app|
+      %w[AGENTS.md ARCHITECTURE.md docs].each { |path| FileUtils.cp_r(ROOT.join("files", path), app) }
+      FileUtils.mv(File.join(app, "docs/adr/0002-credentials-dig-over-env.md"), File.join(app, "docs/adr/0004-skip.md"))
+
+      _stdout, stderr, status = docs_check(app)
+      refute status.success?
+      assert_includes stderr, "ADR numbers must run 0001, 0002, ... without gaps"
+    end
+  end
+
+  def test_readme_lists_the_documentation_structure
+    readme = ROOT.join("README.md").read
+
+    ["ARCHITECTURE.md", "docs/adr", "docs/DOMAIN.md", "bin/docs-check"].each do |term|
+      assert_includes readme, term
+    end
+  end
+
   private
+
+  def docs_check(app)
+    Open3.capture3(RbConfig.ruby, ROOT.join("files/bin/docs-check").to_s, chdir: app)
+  end
 
   def check_rubycritic_report(report)
     Tempfile.create(["rubycritic-report", ".json"]) do |file|

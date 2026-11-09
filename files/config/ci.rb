@@ -4,6 +4,7 @@ CI.run do
   step "Setup", "bin/setup --skip-server"
 
   step "Dependencies: Policy", "bin/dependency-policy"
+  step "Docs: Links and topology", "bin/docs-check"
   step "Style: Ruby", "bin/rubocop"
   step "Types: Sorbet", "bundle exec srb tc"
   step "Quality: RubyCritic score (backstop)", "bin/rubycritic"

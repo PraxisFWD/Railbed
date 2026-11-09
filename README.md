@@ -58,6 +58,19 @@ one command that tells a developer or coding agent whether a change is ready.
 - RubyCritic with a changed-file rating gate and a 90/100 aggregate
   backstop
 
+### Documentation for agents
+
+- `AGENTS.md` as a short index of rules and links, with the Definition of Done
+- `ARCHITECTURE.md` starter: codemap, invariants, boundaries, and dependency
+  rules, with `[Replace: ...]` markers for the application to fill in
+- `docs/README.md` index and a `docs/DOMAIN.md` starter
+- `docs/adr/` with a README on when to write an ADR, numbering, and the
+  template, plus two ADRs for Railbed's own decisions: one PostgreSQL database
+  for the Solid tables and `Credentials.dig` over `ENV`
+- `bin/docs-check`, which fails on broken Markdown links, a page missing from
+  the docs index, or gaps in ADR numbers; it runs in `bin/ci` and as its own
+  GitHub Actions job
+
 ### Safety and CI
 
 - Strong Migrations
