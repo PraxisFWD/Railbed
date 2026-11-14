@@ -443,6 +443,34 @@ class TemplateTest < Minitest::Test
     assert_equal %w[db/migrate/*_create_solid_queue_tables.rb], config.fetch("Quality/TimeForABoolean").fetch("Exclude")
   end
 
+  def test_template_delivers_the_safety_assured_cop
+    template = ROOT.join("template.rb").read
+
+    %w[
+      lib/rubocop/cop/quality/explain_safety_assured.rb
+      spec/rubocop/cop/quality/explain_safety_assured_spec.rb
+    ].each do |path|
+      assert_includes template, %(copy_template_file "#{path}")
+      assert ROOT.join("files", path).file?, "Missing template asset: #{path}"
+    end
+  end
+
+  def test_safety_assured_cop_checks_every_migration_of_a_new_application
+    config = YAML.safe_load_file(ROOT.join("files/.rubocop.yml"), aliases: true)
+    cop_config = config.fetch("Quality/ExplainSafetyAssured")
+
+    assert_equal true, cop_config.fetch("Enabled")
+    assert_equal %w[db/migrate/**/*.rb], cop_config.fetch("Include")
+    assert_equal 0, cop_config.fetch("StartAfter")
+  end
+
+  def test_migrations_use_add_column_that_strong_migrations_can_check
+    config = YAML.safe_load_file(ROOT.join("files/.rubocop.yml"), aliases: true)
+
+    assert_equal %w[db/migrate/**/*.rb], config.fetch("Rails/BulkChangeTable").fetch("Exclude")
+    assert_includes ROOT.join("files/AGENTS.md").read, "`Quality/ExplainSafetyAssured`"
+  end
+
   def test_template_delivers_the_agent_ready_docs_structure
     template = ROOT.join("template.rb").read
 

@@ -5,6 +5,7 @@ plugins:
   - rubocop-view_component
 
 require:
+  - ./lib/rubocop/cop/quality/explain_safety_assured
   - ./lib/rubocop/cop/quality/no_direct_env
   - ./lib/rubocop/cop/quality/no_inline_class
   - ./lib/rubocop/cop/quality/one_element_per_line
@@ -85,6 +86,12 @@ Performance:
 Rails:
   Enabled: true
 
+# Strong Migrations checks each add_column but cannot see inside a bulk change_table.
+# Combine changes with change_table only for table rewrites, in an explained safety_assured.
+Rails/BulkChangeTable:
+  Exclude:
+    - "db/migrate/**/*.rb"
+
 RSpec/DescribeClass:
   Exclude:
     - "spec/bin/**/*_spec.rb"
@@ -123,6 +130,14 @@ Style/AccessModifierDeclarations:
 
 Style/ClassAndModuleChildren:
   Enabled: true
+
+Quality/ExplainSafetyAssured:
+  Enabled: true
+  Include:
+    - "db/migrate/**/*.rb"
+  # To adopt this cop in an application whose migrations already ran in production,
+  # set StartAfter to the newest of those migration versions.
+  StartAfter: 0
 
 Quality/NoDirectEnv:
   Enabled: true
