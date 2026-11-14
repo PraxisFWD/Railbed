@@ -39,4 +39,15 @@ RSpec.describe "RuboCop scope" do
         .to eq(%w[app/models/probe.rb lib/example/probe.rb config/initializers/probe.rb])
     end
   end
+
+  it "checks safety_assured in migrations" do
+    migration = Rails.root.join("db/migrate/20260101000000_probe.rb").to_s
+
+    expect(RuboCop::Cop::Quality::ExplainSafetyAssured.new(config).relevant_file?(migration)).to be(true)
+  end
+
+  it "lets migrations use add_column calls that Strong Migrations can check instead of change_table" do
+    expect(config.for_cop("Rails/BulkChangeTable").fetch("Exclude"))
+      .to include(Rails.root.join("db/migrate/**/*.rb").to_s)
+  end
 end

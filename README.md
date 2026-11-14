@@ -54,7 +54,8 @@ one command that tells a developer or coding agent whether a change is ready.
 - Tapioca gem and DSL RBI generation
 - Rails Omakase with RSpec, FactoryBot, and ViewComponent RuboCop plugins
 - Custom cops for inline classes, direct instance-variable reads, boolean
-  database columns, and `ENV` reads outside `lib/credentials.rb`
+  database columns, `ENV` reads outside `lib/credentials.rb`, and
+  `safety_assured` blocks without a comment saying why they are safe
 - RubyCritic with a changed-file rating gate and a 90/100 aggregate
   backstop
 
